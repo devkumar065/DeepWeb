@@ -1,0 +1,325 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+/* ─── PURE BLACK & WHITE SYSTEM ─────────────────────────────────── */
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #000000;
+  --muted: #f0f0f0;
+  --muted-foreground: #737373;
+  --accent: #000000;
+  --accent-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #f5f5f5;
+  --ring: #000000;
+  --radius: 0.75rem;
+
+  /* Custom tokens */
+  --surface-0: #ffffff;
+  --surface-1: #fafafa;
+  --surface-2: #f5f5f5;
+  --surface-3: #ebebeb;
+  --ink-0: #000000;
+  --ink-1: #1a1a1a;
+  --ink-2: #404040;
+  --ink-3: #737373;
+  --ink-4: #a3a3a3;
+  --ink-5: #d4d4d4;
+}
+
+/* ─── TYPOGRAPHY ─────────────────────────────────────────────────── */
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background-color: #000;
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d4d4d4;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a3a3a3;
+  }
+}
+
+/* ─── CUSTOM COMPONENTS ──────────────────────────────────────────── */
+@layer components {
+
+  /* Premium input */
+  .intel-input {
+    @apply w-full bg-black text-white font-mono text-sm px-5 py-4 rounded-xl border border-neutral-800 
+           placeholder:text-neutral-500 focus:outline-none focus:border-white 
+           transition-all duration-200;
+  }
+
+  /* Primary button */
+  .intel-btn {
+    @apply bg-white text-black font-semibold text-sm px-6 py-3 rounded-xl
+           hover:bg-neutral-100 active:scale-95
+           transition-all duration-150 cursor-pointer select-none;
+  }
+
+  /* Ghost button */
+  .intel-btn-ghost {
+    @apply bg-transparent text-white font-medium text-sm px-5 py-2.5 rounded-lg
+           border border-neutral-700 hover:border-white hover:bg-white/5
+           transition-all duration-150 cursor-pointer;
+  }
+
+  /* Stat card */
+  .stat-card {
+    @apply bg-neutral-900 border border-neutral-800 rounded-xl p-5 
+           hover:border-neutral-600 transition-colors duration-200;
+  }
+
+  /* Data badge */
+  .data-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md 
+           bg-neutral-800 text-neutral-300 text-xs font-medium;
+  }
+
+  /* Section header */
+  .section-label {
+    @apply text-[10px] font-semibold tracking-[0.15em] uppercase text-neutral-500;
+  }
+
+  /* Monospace data */
+  .mono {
+    font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* Divider */
+  .intel-divider {
+    @apply border-t border-neutral-800;
+  }
+
+  /* Log line */
+  .log-line {
+    font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    @apply text-xs text-neutral-400 leading-6;
+  }
+  .log-line.success { @apply text-neutral-200; }
+  .log-line.warning { @apply text-neutral-400; }
+  .log-line.error { @apply text-neutral-500; }
+
+  /* Progress */
+  .intel-progress {
+    @apply h-0.5 bg-neutral-800 rounded-full overflow-hidden;
+  }
+  .intel-progress-bar {
+    @apply h-full bg-white rounded-full transition-all duration-500 ease-out;
+  }
+
+  /* Card hover */
+  .intel-card {
+    @apply bg-neutral-900 border border-neutral-800 rounded-2xl p-6
+           hover:border-neutral-700 transition-all duration-200;
+  }
+
+  /* Tag */
+  .intel-tag {
+    @apply text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 
+           rounded bg-neutral-800 text-neutral-400;
+  }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    @apply bg-neutral-800 rounded animate-pulse;
+  }
+
+  /* Asset thumbnail */
+  .asset-thumb {
+    @apply bg-neutral-800 rounded-lg overflow-hidden aspect-video
+           flex items-center justify-center border border-neutral-700
+           hover:border-neutral-500 transition-colors duration-150;
+  }
+
+  /* Color swatch */
+  .color-swatch {
+    @apply w-8 h-8 rounded-md border border-neutral-700 cursor-pointer
+           hover:scale-110 transition-transform duration-150;
+  }
+
+  /* Tech badge */
+  .tech-badge {
+    @apply flex items-center gap-2 px-3 py-2 bg-neutral-800 border border-neutral-700
+           rounded-lg text-sm text-neutral-200 font-medium;
+  }
+
+  /* Page type badge */
+  .page-badge {
+    @apply text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5
+           bg-neutral-800 text-neutral-400 rounded;
+  }
+
+  /* Step indicator */
+  .step-dot {
+    @apply w-2 h-2 rounded-full bg-neutral-600;
+  }
+  .step-dot.active {
+    @apply bg-white;
+  }
+  .step-dot.done {
+    @apply bg-neutral-400;
+  }
+}
+
+/* ─── ANIMATIONS ─────────────────────────────────────────────────── */
+@layer utilities {
+  .animate-slide-up {
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out both;
+  }
+  .animate-scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+  }
+  .animate-scan {
+    animation: scan 2s linear infinite;
+  }
+  .animate-blink {
+    animation: blink 1s step-end infinite;
+  }
+
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+
+  .text-balance { text-wrap: balance; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+@keyframes scan {
+  0%   { top: 0; }
+  100% { top: 100%; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Scanning line animation for loading states */
+.scanning-overlay {
+  position: relative;
+  overflow: hidden;
+}
+.scanning-overlay::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  animation: scan 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Terminal cursor */
+.terminal-cursor::after {
+  content: '█';
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+}
+
+/* Smooth scrolling for tab panels */
+.tab-panel-enter {
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
