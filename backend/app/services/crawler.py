@@ -1,6 +1,6 @@
 """
 Crawler Service — Discovers all pages on a website.
-Uses Firecrawl API first, falls back to Playwright.
+Uses Playwright to crawl the website.
 """
 import asyncio
 import logging
@@ -155,68 +155,71 @@ class CrawlerService:
                 viewport={"width": 1920, "height": 1080},
             )
 
-            # First: parse sitemap
-            jobs_store[job_id]["logs"].append("Checking sitemap.xml...")
-            sitemap_urls = await self.parse_sitemap(base_url)
-            if sitemap_urls:
-                jobs_store[job_id]["logs"].append(f"Found {len(sitemap_urls)} URLs in sitemap")
-                for u in sitemap_urls[:max_pages]:
-                    if u not in visited:
-                        to_visit.append((u, 1))
+            try:
+                # First: parse sitemap
+                jobs_store[job_id]["logs"].append("Checking sitemap.xml...")
+                sitemap_urls = await self.parse_sitemap(base_url)
+                if sitemap_urls:
+                    jobs_store[job_id]["logs"].append(f"Found {len(sitemap_urls)} URLs in sitemap")
+                    for u in sitemap_urls[:max_pages]:
+                        if u not in visited:
+                            to_visit.append((u, 1))
 
-            # Check robots.txt for additional sitemaps
-            robot_sitemaps = await self.parse_robots(base_url)
-            for sm in robot_sitemaps:
-                child_urls = await self._fetch_sitemap_child(
-                    httpx.AsyncClient(), sm
-                )
-                for u in child_urls:
-                    if u not in visited:
-                        to_visit.append((u, 1))
-
-            # Crawl pages
-            while to_visit and len(pages) < max_pages:
-                url, depth = to_visit.pop(0)
-                if url in visited or depth > 5:
-                    continue
-                visited.add(url)
-
-                try:
-                    page = await context.new_page()
-                    jobs_store[job_id]["logs"].append(f"Crawling [{len(pages)+1}]: {url}")
-
-                    await page.goto(url, wait_until="networkidle", timeout=20000)
-                    await page.wait_for_timeout(1000)
-
-                    title = await page.title()
-                    page_type = self.categorize_page(url, title)
-
-                    discovered = DiscoveredPage(
-                        url=url,
-                        title=title,
-                        type=page_type,
-                        depth=depth,
-                        status_code=200,
+                # Check robots.txt for additional sitemaps
+                robot_sitemaps = await self.parse_robots(base_url)
+                for sm in robot_sitemaps:
+                    child_urls = await self._fetch_sitemap_child(
+                        httpx.AsyncClient(), sm
                     )
-                    pages.append(discovered)
+                    for u in child_urls:
+                        if u not in visited:
+                            to_visit.append((u, 1))
 
-                    jobs_store[job_id]["pages_found"] = len(pages)
-                    jobs_store[job_id]["progress"] = min(95, (len(pages) / max_pages) * 100)
+                # Crawl pages
+                while to_visit and len(pages) < max_pages:
+                    url, depth = to_visit.pop(0)
+                    if url in visited or depth > 5:
+                        continue
+                    visited.add(url)
 
-                    # Extract links for further crawling
-                    if depth < 3:
-                        new_links = await self.extract_links(page, base_url)
-                        for link in new_links:
-                            if link not in visited:
-                                to_visit.append((link, depth + 1))
+                    page = None
+                    try:
+                        page = await context.new_page()
+                        jobs_store[job_id]["logs"].append(f"Crawling [{len(pages)+1}]: {url}")
 
-                    await page.close()
+                        await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+                        title = await page.title()
+                        page_type = self.categorize_page(url, title)
 
-                except Exception as e:
-                    logger.warning(f"Failed to crawl {url}: {e}")
-                    jobs_store[job_id]["logs"].append(f"⚠ Failed: {url} — {str(e)[:80]}")
+                        discovered = DiscoveredPage(
+                            url=url,
+                            title=title,
+                            type=page_type,
+                            depth=depth,
+                            status_code=200,
+                        )
+                        pages.append(discovered)
 
-            await context.close()
+                        jobs_store[job_id]["pages_found"] = len(pages)
+                        jobs_store[job_id]["progress"] = min(95, (len(pages) / max_pages) * 100)
+
+                        # Extract links for further crawling
+                        if depth < 3:
+                            new_links = await self.extract_links(page, base_url)
+                            for link in new_links:
+                                if link not in visited:
+                                    to_visit.append((link, depth + 1))
+
+                    except Exception as e:
+                        logger.warning(f"Failed to crawl {url}: {e}")
+                        jobs_store[job_id]["logs"].append(f"⚠ Failed: {url} — {str(e)[:80]}")
+                    finally:
+                        if page:
+                            await page.close()
+
+            finally:
+                if context:
+                    await context.close()
 
         except Exception as e:
             logger.error(f"Playwright crawl error: {e}")
@@ -231,57 +234,10 @@ class CrawlerService:
         job_id: str,
         jobs_store: Dict,
     ) -> List[DiscoveredPage]:
-        """Main entry point: try Firecrawl, fall back to Playwright"""
-        from app.core.config import settings
-
-        if settings.FIRECRAWL_API_KEY:
-            try:
-                return await self._crawl_with_firecrawl(
-                    base_url, max_pages, job_id, jobs_store
-                )
-            except Exception as e:
-                jobs_store[job_id]["logs"].append(f"Firecrawl failed, using Playwright: {e}")
-
+        """Main entry point: crawls using Playwright"""
         return await self.crawl_with_playwright(base_url, max_pages, job_id, jobs_store)
 
-    async def _crawl_with_firecrawl(
-        self,
-        base_url: str,
-        max_pages: int,
-        job_id: str,
-        jobs_store: Dict,
-    ) -> List[DiscoveredPage]:
-        from firecrawl import FirecrawlApp
-        from app.core.config import settings
 
-        jobs_store[job_id]["logs"].append("[Firecrawl] Starting crawl...")
-        app = FirecrawlApp(api_key=settings.FIRECRAWL_API_KEY)
-
-        crawl_result = app.crawl_url(
-            base_url,
-            params={
-                "limit": max_pages,
-                "scrapeOptions": {"formats": ["markdown", "html"]},
-            },
-        )
-
-        pages = []
-        for item in crawl_result.get("data", []):
-            url = item.get("metadata", {}).get("sourceURL", "")
-            title = item.get("metadata", {}).get("title", "")
-            if url:
-                pages.append(DiscoveredPage(
-                    url=url,
-                    title=title,
-                    type=self.categorize_page(url, title),
-                    depth=0,
-                    status_code=200,
-                ))
-            jobs_store[job_id]["pages_found"] = len(pages)
-            jobs_store[job_id]["progress"] = min(95, (len(pages) / max_pages) * 100)
-            jobs_store[job_id]["logs"].append(f"[Firecrawl] Found: {url}")
-
-        return pages
 
 
 crawler_service = CrawlerService()

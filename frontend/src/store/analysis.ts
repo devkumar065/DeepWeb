@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export type AnalysisStep =
   | "idle"
@@ -7,7 +8,11 @@ export type AnalysisStep =
   | "screenshots"
   | "assets"
   | "ai"
-  | "complete";
+  | "complete"
+  // New unified scan phases
+  | "fetching"
+  | "rendering"
+  | "ai_analysis";
 
 export interface DiscoveredPage {
   url: string;
@@ -37,6 +42,7 @@ export interface Screenshot {
   height: number;
   full_page: boolean;
   error?: string;
+  url?: string;
 }
 
 export interface Technology {
@@ -66,6 +72,7 @@ export interface AnalysisState {
 
   // Job
   jobId: string | null;
+  scanId: string | null;
   step: AnalysisStep;
   progress: number;
   logs: string[];
@@ -83,9 +90,11 @@ export interface AnalysisState {
   screenshots: Screenshot[];
   aiAnalysis: Record<string, unknown> | null;
   aiRedesign: Record<string, unknown> | null;
+  networkSecurity: Record<string, unknown> | null;
 
   // Actions
   setJobId: (id: string) => void;
+  setScanId: (id: string) => void;
   setStep: (step: AnalysisStep) => void;
   setProgress: (progress: number) => void;
   addLog: (log: string) => void;
@@ -102,12 +111,14 @@ export interface AnalysisState {
   setScreenshots: (d: Screenshot[]) => void;
   setAiAnalysis: (d: Record<string, unknown>) => void;
   setAiRedesign: (d: Record<string, unknown>) => void;
+  setNetworkSecurity: (d: Record<string, unknown>) => void;
   reset: () => void;
 }
 
 const initialState = {
   url: "",
   jobId: null,
+  scanId: null,
   step: "idle" as AnalysisStep,
   progress: 0,
   logs: [],
@@ -123,28 +134,65 @@ const initialState = {
   screenshots: [],
   aiAnalysis: null,
   aiRedesign: null,
+  networkSecurity: null,
 };
 
-export const useAnalysisStore = create<AnalysisState>((set) => ({
-  ...initialState,
+export const useAnalysisStore = create<AnalysisState>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-  setUrl: (url) => set({ url }),
-  setJobId: (jobId) => set({ jobId }),
-  setStep: (step) => set({ step }),
-  setProgress: (progress) => set({ progress }),
-  addLog: (log) => set((s) => ({ logs: [...s.logs, log].slice(-200) })),
-  setLogs: (logs) => set({ logs }),
-  setPages: (pages) => set({ pages }),
-  setOverview: (overview) => set({ overview }),
-  setBrand: (brand) => set({ brand }),
-  setNavigation: (navigation) => set({ navigation }),
-  setSeo: (seo) => set({ seo }),
-  setTechnologies: (technologies) => set({ technologies }),
-  setSocial: (social) => set({ social }),
-  setContacts: (contacts) => set({ contacts }),
-  setAssets: (assets) => set({ assets }),
-  setScreenshots: (screenshots) => set({ screenshots }),
-  setAiAnalysis: (aiAnalysis) => set({ aiAnalysis }),
-  setAiRedesign: (aiRedesign) => set({ aiRedesign }),
-  reset: () => set(initialState),
-}));
+      setUrl: (url) => set({ url }),
+      setJobId: (jobId) => set({ jobId }),
+      setScanId: (scanId) => set({ scanId }),
+      setStep: (step) => set({ step }),
+      setProgress: (progress) => set({ progress }),
+      addLog: (log) => set((s) => ({ logs: [...s.logs, log].slice(-200) })),
+      setLogs: (logs) => set({ logs }),
+      setPages: (pages) => set({ pages }),
+      setOverview: (overview) => set({ overview }),
+      setBrand: (brand) => set({ brand }),
+      setNavigation: (navigation) => set({ navigation }),
+      setSeo: (seo) => set({ seo }),
+      setTechnologies: (technologies) => set({ technologies }),
+      setSocial: (social) => set({ social }),
+      setContacts: (contacts) => set({ contacts }),
+      setAssets: (assets) => set({ assets }),
+      setScreenshots: (screenshots) => set({ screenshots }),
+      setAiAnalysis: (aiAnalysis) => set({ aiAnalysis }),
+      setAiRedesign: (aiRedesign) => set({ aiRedesign }),
+      setNetworkSecurity: (networkSecurity) => set({ networkSecurity }),
+      reset: () => set(initialState),
+    }),
+    {
+      name: "deepweb-analysis-storage",
+      // Exclude large base64 data (screenshots, assets) from localStorage
+      // to avoid QuotaExceededError. Only save lightweight metadata.
+      partialize: (state) => ({
+        url: state.url,
+        jobId: state.jobId,
+        scanId: state.scanId,
+        step: state.step,
+        pages: state.pages,
+        overview: state.overview,
+        brand: state.brand,
+        navigation: state.navigation,
+        seo: state.seo,
+        technologies: state.technologies,
+        social: state.social,
+        contacts: state.contacts,
+        aiAnalysis: state.aiAnalysis,
+        networkSecurity: state.networkSecurity,
+        // screenshots & assets excluded — too large for localStorage
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state && state.step !== "complete" && state.step !== "idle") {
+          // Was interrupted mid-scan - reset to idle but keep the URL
+          const savedUrl = state.url;
+          Object.assign(state, { ...initialState, url: savedUrl });
+        }
+      },
+    }
+  )
+);
+

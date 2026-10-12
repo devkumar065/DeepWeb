@@ -4,28 +4,33 @@ import { motion } from "framer-motion";
 import { useAnalysisStore } from "@/store/analysis";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Technology } from "@/store/analysis";
+import { Cpu, CheckCircle2 } from "lucide-react";
 
-const CATEGORY_ORDER = ["framework", "cms", "cdn", "hosting", "analytics", "css_framework", "payment", "database", "other"];
+const CATEGORY_ORDER = [
+  "framework", "cms", "cdn", "hosting", "analytics", 
+  "css_framework", "payment", "database", "security", "other"
+];
+
 const CATEGORY_LABELS: Record<string, string> = {
-  framework: "Frontend Framework",
-  cms: "CMS",
-  cdn: "CDN",
-  hosting: "Hosting",
-  analytics: "Analytics & Tracking",
-  css_framework: "CSS Framework",
-  payment: "Payment",
-  database: "Database",
-  other: "Other",
+  framework: "Frontend Frameworks & Libraries",
+  cms: "Content Management Systems (CMS)",
+  cdn: "Content Delivery Network (CDN)",
+  hosting: "Hosting & Cloud Infrastructure",
+  analytics: "Analytics, Pixels & Telemetry",
+  css_framework: "CSS & Design Frameworks",
+  payment: "Payment Gateways & Processors",
+  database: "Databases & APIs",
+  security: "Security & DDoS Protection",
+  other: "Other Detected Technologies",
 };
 
 export default function TechTab() {
   const { technologies, step } = useAnalysisStore();
-  const isLoading = technologies.length === 0 && step === "analyzing";
+  const isLoading = technologies.length === 0 && (step === "analyzing" || step === "fetching" || step === "rendering");
 
   if (isLoading) return <TechSkeleton />;
   if (technologies.length === 0) return <EmptyState />;
 
-  // Group by category
   const grouped = technologies.reduce((acc, tech) => {
     const cat = tech.category || "other";
     if (!acc[cat]) acc[cat] = [];
@@ -38,13 +43,19 @@ export default function TechTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <div className="section-label mb-1">Technology Stack</div>
-        <h2 className="text-2xl font-bold tabular-nums">{technologies.length} detected</h2>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-[11px] font-mono font-semibold tracking-wider uppercase text-muted mb-1">
+            Technology Stack Detection
+          </div>
+          <h2 className="text-2xl font-bold font-serif text-foreground tabular-nums">
+            {technologies.length} Technologies Identified
+          </h2>
+        </div>
       </div>
 
-      {/* Stack overview cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Core Infrastructure Highlight Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {["framework", "cms", "cdn", "hosting"].map((cat) => {
           const tech = grouped[cat]?.[0];
           return (
@@ -52,70 +63,83 @@ export default function TechTab() {
               key={cat}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="stat-card"
+              className="bg-surface border border-border rounded-xl p-5 shadow-xs hover:border-border-hover transition-colors"
             >
-              <div className="section-label mb-2">{CATEGORY_LABELS[cat] || cat}</div>
+              <div className="text-[10px] font-mono font-semibold tracking-wider uppercase text-muted mb-2">
+                {CATEGORY_LABELS[cat]?.split(" ")[0] || cat}
+              </div>
               {tech ? (
-                <>
-                  <div className="text-base font-semibold">{tech.name}</div>
+                <div>
+                  <div className="text-base font-bold font-mono text-foreground truncate">
+                    {tech.name}
+                  </div>
                   <ConfidenceBar confidence={tech.confidence} />
-                </>
+                </div>
               ) : (
-                <div className="text-base text-neutral-700">—</div>
+                <div className="text-sm font-mono text-muted">—</div>
               )}
             </motion.div>
           );
         })}
       </div>
 
-      {/* All technologies by category */}
-      {categories.filter((cat) => grouped[cat]).map((cat, catIdx) => (
-        <motion.div
-          key={cat}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: catIdx * 0.05 }}
-          className="intel-card"
-        >
-          <div className="section-label mb-4">{CATEGORY_LABELS[cat] || cat}</div>
-          <div className="space-y-3">
-            {(grouped[cat] || []).map((tech, i) => (
-              <motion.div
-                key={tech.name}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: catIdx * 0.05 + i * 0.03 }}
-                className="flex items-center gap-4"
-              >
-                {/* Tech icon placeholder */}
-                <div className="w-8 h-8 bg-neutral-800 rounded-lg flex items-center justify-center text-sm flex-shrink-0 border border-neutral-700">
-                  {tech.name.slice(0, 2)}
-                </div>
+      {/* All Technologies Grouped by Category */}
+      <div className="space-y-6">
+        {categories.filter((cat) => grouped[cat]?.length).map((cat, catIdx) => (
+          <motion.div
+            key={cat}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: catIdx * 0.04 }}
+            className="bg-surface border border-border rounded-2xl p-6 shadow-xs"
+          >
+            <div className="text-[11px] font-mono font-semibold tracking-wider uppercase text-muted mb-4 pb-2 border-b border-border flex items-center justify-between">
+              <span>{CATEGORY_LABELS[cat] || cat}</span>
+              <span className="text-xs text-foreground font-mono">{grouped[cat].length} detected</span>
+            </div>
 
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-sm font-medium">{tech.name}</span>
-                    {tech.version && (
-                      <span className="text-[10px] text-neutral-600 font-mono">v{tech.version}</span>
-                    )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {(grouped[cat] || []).map((tech, i) => (
+                <div
+                  key={tech.name}
+                  className="flex items-center gap-3.5 p-3 rounded-xl bg-surface-elevated border border-border hover:border-border-hover transition-colors"
+                >
+                  <div className="w-9 h-9 bg-surface rounded-lg flex items-center justify-center text-xs font-mono font-bold text-accent border border-border flex-shrink-0">
+                    {tech.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-0.5 bg-neutral-800 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-white rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${tech.confidence}%` }}
-                        transition={{ duration: 0.8, delay: catIdx * 0.05 + i * 0.03 + 0.2 }}
-                      />
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-foreground truncate">
+                        {tech.name}
+                      </span>
+                      {tech.version && (
+                        <span className="text-[10px] text-muted font-mono px-1.5 py-0.2 rounded bg-surface border border-border">
+                          v{tech.version}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-xs text-neutral-500 tabular-nums w-8 text-right">{tech.confidence}%</span>
+
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 h-1.5 bg-surface rounded-full overflow-hidden border border-border/50">
+                        <motion.div
+                          className="h-full bg-accent rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${tech.confidence}%` }}
+                          transition={{ duration: 0.6, delay: 0.1 }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-muted font-mono tabular-nums w-7 text-right">
+                        {tech.confidence}%
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      ))}
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -123,15 +147,15 @@ export default function TechTab() {
 function ConfidenceBar({ confidence }: { confidence: number }) {
   return (
     <div className="flex items-center gap-2 mt-2">
-      <div className="flex-1 h-0.5 bg-neutral-700 rounded-full overflow-hidden">
+      <div className="flex-1 h-1 bg-surface-elevated rounded-full overflow-hidden">
         <motion.div
-          className="h-full bg-white rounded-full"
+          className="h-full bg-accent rounded-full"
           initial={{ width: 0 }}
           animate={{ width: `${confidence}%` }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.6 }}
         />
       </div>
-      <span className="text-[10px] text-neutral-500">{confidence}%</span>
+      <span className="text-[10px] font-mono text-muted tabular-nums">{confidence}%</span>
     </div>
   );
 }
@@ -139,28 +163,23 @@ function ConfidenceBar({ confidence }: { confidence: number }) {
 function TechSkeleton() {
   return (
     <div className="space-y-6">
-      <Skeleton className="h-6 w-40" />
-      <div className="grid grid-cols-4 gap-3">
+      <Skeleton className="h-8 w-64" />
+      <div className="grid grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="stat-card space-y-2">
+          <div key={i} className="bg-surface border border-border rounded-xl p-5 space-y-2">
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-0.5 w-full" />
           </div>
         ))}
       </div>
-      {[...Array(3)].map((_, i) => (
-        <div key={i} className="intel-card space-y-3">
-          <Skeleton className="h-3 w-28" />
-          {[...Array(3)].map((_, j) => (
-            <div key={j} className="flex items-center gap-4">
-              <Skeleton className="w-8 h-8 rounded-lg flex-shrink-0" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-0.5 w-full" />
-              </div>
-            </div>
-          ))}
+      {[...Array(2)].map((_, i) => (
+        <div key={i} className="bg-surface border border-border rounded-2xl p-6 space-y-3">
+          <Skeleton className="h-4 w-40" />
+          <div className="grid grid-cols-2 gap-3">
+            {[...Array(4)].map((_, j) => (
+              <Skeleton key={j} className="h-14 rounded-xl" />
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -169,9 +188,10 @@ function TechSkeleton() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-64 text-neutral-600">
-      <div className="text-4xl mb-4">⊗</div>
-      <p className="text-sm">Technology detection pending...</p>
+    <div className="flex flex-col items-center justify-center h-72 text-muted bg-surface border border-border rounded-2xl">
+      <div className="text-3xl mb-3 text-accent font-serif font-bold">⊗</div>
+      <p className="text-sm font-medium text-foreground">Technology Data Pending</p>
+      <p className="text-xs text-muted mt-1">Start a scan to detect software stack</p>
     </div>
   );
 }

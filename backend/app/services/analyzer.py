@@ -410,7 +410,8 @@ class AnalyzerService:
     async def get_domain_age(self, domain: str) -> Optional[str]:
         try:
             import whois
-            w = whois.whois(domain)
+            import asyncio
+            w = await asyncio.to_thread(whois.whois, domain)
             creation_date = w.creation_date
             if isinstance(creation_date, list):
                 creation_date = creation_date[0]

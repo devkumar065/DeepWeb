@@ -3,9 +3,7 @@ from typing import List
 
 
 class Settings(BaseSettings):
-    # API Keys (sirf yeh 2 chahiye)
-    GROQ_API_KEY: str = ""
-    FIRECRAWL_API_KEY: str = ""
+
 
     # App defaults (change mat karo)
     BACKEND_URL: str = "http://localhost:8000"

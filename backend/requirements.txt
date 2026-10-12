@@ -17,3 +17,4 @@ whois==0.9.27
 dnspython==2.7.0
 cssutils==2.11.1
 Pillow==10.4.0
+aiosqlite==0.20.0

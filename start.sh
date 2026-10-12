@@ -21,6 +21,11 @@ if [ ! -f "$BACKEND_DIR/.env" ]; then
   echo ""
 fi
 
+# Cleanup existing processes on ports 3000 and 8000
+echo "  ◎  Cleaning up old processes on ports 3000 and 8000..."
+kill -9 $(lsof -t -i:3000) 2>/dev/null || true
+kill -9 $(lsof -t -i:8000) 2>/dev/null || true
+
 # Start Backend
 echo "  ▶  Starting FastAPI backend on http://localhost:8000"
 cd "$BACKEND_DIR"

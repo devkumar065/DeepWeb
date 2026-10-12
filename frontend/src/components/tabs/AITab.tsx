@@ -1,322 +1,300 @@
-// @ts-nocheck
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useAnalysisStore } from "@/store/analysis";
 import { aiApi } from "@/lib/api";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const REDESIGN_STYLES = [
-  { id: "apple", label: "Apple Style", desc: "Clean, minimal, premium" },
-  { id: "stripe", label: "Stripe Style", desc: "Bold typography, purple gradient" },
-  { id: "linear", label: "Linear Style", desc: "Dark, geometric, sharp" },
-];
+import {
+  Sparkles,
+  Cpu,
+  Palette,
+  Lightbulb,
+  CheckCircle2,
+  ArrowRight,
+  Loader2,
+  RefreshCw,
+  Wand2,
+  FileCode2,
+  ShieldCheck
+} from "lucide-react";
 
 export default function AITab() {
-  const { aiAnalysis, aiRedesign, setAiAnalysis, setAiRedesign, url, overview, seo, technologies, pages } = useAnalysisStore();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isRedesigning, setIsRedesigning] = useState(false);
-  const [selectedStyle, setSelectedStyle] = useState("apple");
+  const { url, scanId, jobId, aiAnalysis, aiRedesign, setAiAnalysis, setAiRedesign } = useAnalysisStore();
+  const [analyzing, setAnalyzing] = useState(false);
+  const [generatingRedesign, setGeneratingRedesign] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState("Minimalist Linear");
 
-  const runAIAnalysis = async () => {
-    setIsAnalyzing(true);
+  const runAiAnalysis = async () => {
+    if (!url) {
+      toast.error("No website URL provided");
+      return;
+    }
+
+    setAnalyzing(true);
+    const toastId = toast.loading("Synthesizing AI architectural review...");
+
     try {
-      const analysisData = { overview, seo, technologies, pages };
-      const res = await aiApi.analyze(url, "current", analysisData);
+      const store = useAnalysisStore.getState();
+      const payload = {
+        overview: store.overview,
+        technologies: store.technologies,
+        seo: store.seo,
+        brand: store.brand,
+      };
+
+      const res = await aiApi.analyze(url, (scanId || jobId || "default") as string, payload);
       setAiAnalysis(res.data);
-      toast.success("AI analysis complete");
-    } catch (e: unknown) {
-      toast.error("AI analysis failed", { description: (e as Error).message });
+      toast.success("AI review generated successfully!", { id: toastId });
+    } catch (err: unknown) {
+      console.error("AI error:", err);
+      toast.error("AI review unavailable. Check backend AI configuration.", { id: toastId });
     } finally {
-      setIsAnalyzing(false);
+      setAnalyzing(false);
     }
   };
 
-  const runRedesign = async () => {
-    setIsRedesigning(true);
+  const runAiRedesign = async () => {
+    if (!url) return;
+
+    setGeneratingRedesign(true);
+    const toastId = toast.loading(`Generating ${selectedStyle} redesign proposal...`);
+
     try {
-      const analysisData = { overview, seo, technologies, pages };
-      const res = await aiApi.redesign(url, selectedStyle, analysisData);
+      const store = useAnalysisStore.getState();
+      const payload = {
+        brand: store.brand,
+        technologies: store.technologies,
+      };
+
+      const res = await aiApi.redesign(url, selectedStyle, payload);
       setAiRedesign(res.data);
-      toast.success("Redesign generated");
-    } catch (e: unknown) {
-      toast.error("Redesign failed", { description: (e as Error).message });
+      toast.success("Redesign proposal generated!", { id: toastId });
+    } catch (err: unknown) {
+      console.error("AI redesign error:", err);
+      toast.error("Redesign proposal unavailable.", { id: toastId });
     } finally {
-      setIsRedesigning(false);
+      setGeneratingRedesign(false);
     }
   };
 
-  const ai = aiAnalysis as Record<string, unknown> | null;
-  const rd = aiRedesign as Record<string, unknown> | null;
+  const STYLES = ["Minimalist Linear", "Editorial Swiss", "High-Tech Cyber", "Warm Organic"];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const analysisData = (aiAnalysis as Record<string, any>) || null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const redesignData = (aiRedesign as Record<string, any>) || null;
 
   return (
     <div className="space-y-8">
-      {/* AI Analysis Section */}
-      <div>
-        <div className="section-label mb-4">AI Intelligence Analysis</div>
-        {!ai ? (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="intel-card text-center py-12"
-          >
-            <div className="text-4xl mb-4">✦</div>
-            <h3 className="text-lg font-semibold mb-2">Gemini AI Analysis</h3>
-            <p className="text-neutral-500 text-sm mb-6 max-w-md mx-auto">
-              Run a deep AI analysis to understand the business type, target audience,
-              strengths, weaknesses, and get actionable suggestions.
-            </p>
-            <button
-              id="run-ai-analysis-btn"
-              onClick={runAIAnalysis}
-              disabled={isAnalyzing}
-              className="bg-white text-black font-semibold text-sm px-8 py-3 rounded-xl
-                         hover:bg-neutral-100 active:scale-95 transition-all duration-150
-                         disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
-            >
-              {isAnalyzing ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Analyzing with Gemini...
-                </>
-              ) : (
-                <>✦ Run AI Analysis</>
-              )}
-            </button>
-          </motion.div>
-        ) : (
-          <AIAnalysisResults data={ai} onRerun={runAIAnalysis} isRunning={isAnalyzing} />
-        )}
-      </div>
-
-      {/* AI Redesign Section */}
-      <div>
-        <div className="section-label mb-4">AI Redesign Generator</div>
-        <div className="intel-card">
-          <h3 className="text-base font-semibold mb-2">Generate a Modern Redesign</h3>
-          <p className="text-neutral-500 text-sm mb-5">
-            AI will generate Tailwind + React components for your website redesign.
+      {/* Hero Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-surface border border-border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6"
+      >
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-accent" />
+            <span className="text-[11px] font-semibold tracking-[0.14em] uppercase text-muted">
+              DeepWeb Intelligence Engine
+            </span>
+          </div>
+          <h2 className="text-xl font-serif font-bold text-foreground">
+            AI Architectural Audit & Redesign
+          </h2>
+          <p className="text-xs text-muted max-w-xl">
+            Leverage LLM reasoning over the extracted HTML, network security records, and design tokens to audit user experience flaws, code performance bottlenecks, and design modern UI alternatives.
           </p>
+        </div>
 
-          {/* Style selector */}
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            {REDESIGN_STYLES.map((style) => (
-              <button
-                key={style.id}
-                onClick={() => setSelectedStyle(style.id)}
-                className={`p-3 rounded-xl border text-left transition-all duration-150 ${
-                  selectedStyle === style.id
-                    ? "bg-white text-black border-white"
-                    : "border-neutral-700 hover:border-neutral-500 text-neutral-300"
-                }`}
-              >
-                <div className="text-sm font-semibold">{style.label}</div>
-                <div className={`text-xs mt-0.5 ${selectedStyle === style.id ? "text-black/60" : "text-neutral-500"}`}>
-                  {style.desc}
+        <button
+          onClick={runAiAnalysis}
+          disabled={analyzing}
+          className="px-5 py-2.5 rounded-xl bg-accent text-accent-foreground font-semibold text-xs shadow-sm hover:bg-accent-hover active:scale-95 transition-all inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 flex-shrink-0"
+        >
+          {analyzing ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Synthesizing...
+            </>
+          ) : (
+            <>
+              <Cpu className="w-3.5 h-3.5" />
+              Run AI Audit
+            </>
+          )}
+        </button>
+      </motion.div>
+
+      {/* Analysis Results or Empty Prompt */}
+      {analysisData ? (
+        <div className="space-y-6">
+          {/* Executive Summary */}
+          {analysisData.summary && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-surface border border-border rounded-xl p-6 shadow-sm space-y-3"
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                <Lightbulb className="w-4 h-4 text-accent" />
+                Executive Synthesis
+              </div>
+              <p className="text-sm text-foreground leading-relaxed">
+                {analysisData.summary}
+              </p>
+            </motion.div>
+          )}
+
+          {/* Key Findings Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {analysisData.strengths && (
+              <div className="bg-surface border border-border rounded-xl p-5 shadow-sm space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-success flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Architectural Strengths
                 </div>
-              </button>
-            ))}
+                <ul className="space-y-2 text-xs text-foreground-secondary">
+                  {(Array.isArray(analysisData.strengths) ? analysisData.strengths : [analysisData.strengths]).map(
+                    (s: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-success mt-0.5">•</span>
+                        <span>{s}</span>
+                      </li>
+                    )
+                  )}
+                </ul>
+              </div>
+            )}
+
+            {analysisData.recommendations && (
+              <div className="bg-surface border border-border rounded-xl p-5 shadow-sm space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-accent flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4" />
+                  Optimization Opportunities
+                </div>
+                <ul className="space-y-2 text-xs text-foreground-secondary">
+                  {(Array.isArray(analysisData.recommendations) ? analysisData.recommendations : [analysisData.recommendations]).map(
+                    (r: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-accent mt-0.5">•</span>
+                        <span>{r}</span>
+                      </li>
+                    )
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-5 bg-surface border border-border rounded-xl space-y-2 shadow-sm">
+            <div className="w-8 h-8 rounded-lg bg-surface-elevated border border-border flex items-center justify-center text-accent">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs font-semibold text-foreground">Security Vulnerability Assessment</h4>
+            <p className="text-xs text-muted leading-relaxed">
+              Synthesizes headers, SSL cipher suites, and DNS configuration to detect misconfigured policies.
+            </p>
+          </div>
+
+          <div className="p-5 bg-surface border border-border rounded-xl space-y-2 shadow-sm">
+            <div className="w-8 h-8 rounded-lg bg-surface-elevated border border-border flex items-center justify-center text-accent">
+              <FileCode2 className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs font-semibold text-foreground">Stack Modernization Audit</h4>
+            <p className="text-xs text-muted leading-relaxed">
+              Evaluates outdated frontend scripts and compares them against current industry best practices.
+            </p>
+          </div>
+
+          <div className="p-5 bg-surface border border-border rounded-xl space-y-2 shadow-sm">
+            <div className="w-8 h-8 rounded-lg bg-surface-elevated border border-border flex items-center justify-center text-accent">
+              <Palette className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs font-semibold text-foreground">Design Token Harmony Check</h4>
+            <p className="text-xs text-muted leading-relaxed">
+              Analyzes contrast ratios across extracted color palettes and proposes WCAG-compliant adjustments.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Redesign Generator Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-surface border border-border rounded-xl p-6 shadow-sm space-y-5"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Wand2 className="w-4 h-4 text-accent" />
+              <span className="text-[11px] font-semibold tracking-[0.14em] uppercase text-muted">
+                Design System Re-imagination
+              </span>
+            </div>
+            <h3 className="text-base font-semibold text-foreground">
+              Generate AI Redesign Concepts
+            </h3>
           </div>
 
           <button
-            id="run-redesign-btn"
-            onClick={runRedesign}
-            disabled={isRedesigning}
-            className="bg-white text-black font-semibold text-sm px-6 py-3 rounded-xl
-                       hover:bg-neutral-100 active:scale-95 transition-all duration-150
-                       disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            onClick={runAiRedesign}
+            disabled={generatingRedesign}
+            className="px-4 py-2 rounded-xl bg-surface border border-border hover:bg-surface-elevated text-foreground font-semibold text-xs transition-colors inline-flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
-            {isRedesigning ? (
+            {generatingRedesign ? (
               <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-                Generating...
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-muted" />
+                Generating Concept...
               </>
             ) : (
-              "✦ Generate Redesign"
+              <>
+                <Sparkles className="w-3.5 h-3.5 text-accent" />
+                Generate Redesign
+              </>
             )}
           </button>
         </div>
 
-        {/* Redesign results */}
-        {rd && <RedesignResults data={rd} />}
-      </div>
-    </div>
-  );
-}
+        {/* Style Selection Chips */}
+        <div className="flex flex-wrap gap-2">
+          {STYLES.map((style) => (
+            <button
+              key={style}
+              onClick={() => setSelectedStyle(style)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                selectedStyle === style
+                  ? "bg-accent text-accent-foreground shadow-sm"
+                  : "bg-surface-elevated text-muted hover:text-foreground border border-border"
+              }`}
+            >
+              {style}
+            </button>
+          ))}
+        </div>
 
-function AIAnalysisResults({ data, onRerun, isRunning }: {
-  data: Record<string, unknown>;
-  onRerun: () => void;
-  isRunning: boolean;
-}) {
-  return (
-    <div className="space-y-4">
-      {/* Score */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="intel-card">
-        <div className="flex items-center justify-between mb-3">
-          <div className="section-label">Overall Score</div>
-          <button onClick={onRerun} disabled={isRunning} className="text-xs text-neutral-500 hover:text-white">
-            {isRunning ? "Re-running..." : "↺ Re-run"}
-          </button>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-5xl font-black tabular-nums">{data.overall_score as number ?? "—"}</div>
-          <div className="flex-1">
-            <div className="h-1 bg-neutral-800 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-white rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${data.overall_score as number ?? 0}%` }}
-                transition={{ duration: 1 }}
-              />
+        {/* Redesign Data View */}
+        {redesignData ? (
+          <div className="p-4 bg-surface-elevated rounded-xl border border-border space-y-3">
+            <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+              <span>Aesthetic Concept: {selectedStyle}</span>
+              <span className="text-[10px] text-muted font-mono">Generated via DeepWeb AI</span>
             </div>
-            <p className="text-xs text-neutral-500 mt-2">{data.business_type as string}</p>
+            <div className="text-xs text-foreground-secondary leading-relaxed whitespace-pre-wrap">
+              {typeof redesignData === "string" ? redesignData : JSON.stringify(redesignData, null, 2)}
+            </div>
           </div>
-        </div>
+        ) : (
+          <p className="text-xs text-muted italic">
+            Select a design aesthetic above and click Generate Redesign to produce a tailored color palette, font pairing, and component direction.
+          </p>
+        )}
       </motion.div>
-
-      {/* Target Audience */}
-      {data.target_audience && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="intel-card">
-          <div className="section-label mb-2">Target Audience</div>
-          <p className="text-sm text-neutral-300">{data.target_audience as string}</p>
-        </motion.div>
-      )}
-
-      {/* Strengths & Weaknesses */}
-      <div className="grid grid-cols-2 gap-4">
-        <AIList label="Strengths" items={data.strengths as string[]} symbol="+" />
-        <AIList label="Weaknesses" items={data.weaknesses as string[]} symbol="−" />
-      </div>
-
-      {/* Issues */}
-      <div className="grid grid-cols-2 gap-4">
-        <AIList label="SEO Issues" items={data.seo_issues as string[]} symbol="!" />
-        <AIList label="Missing Pages" items={data.missing_pages as string[]} symbol="?" />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <AIList label="Accessibility Issues" items={data.accessibility_issues as string[]} symbol="!" />
-        <AIList label="Performance Issues" items={data.performance_issues as string[]} symbol="!" />
-      </div>
-
-      {/* Suggestions */}
-      {(data.suggestions as string[])?.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="intel-card">
-          <div className="section-label mb-3">Actionable Suggestions</div>
-          <div className="space-y-2">
-            {(data.suggestions as string[]).map((s, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm text-neutral-300">
-                <span className="text-neutral-600 flex-shrink-0 mt-0.5">{i + 1}.</span>
-                <span>{s}</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Redesign suggestions */}
-      {data.redesign_suggestions && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="intel-card">
-          <div className="section-label mb-3">Redesign Recommendations</div>
-          <p className="text-sm text-neutral-300 leading-relaxed">{data.redesign_suggestions as string}</p>
-        </motion.div>
-      )}
     </div>
-  );
-}
-
-function AIList({ label, items, symbol }: { label: string; items?: string[]; symbol: string }) {
-  if (!items?.length) return null;
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="intel-card">
-      <div className="section-label mb-3">{label}</div>
-      <div className="space-y-2">
-        {items.map((item, i) => (
-          <div key={i} className="flex items-start gap-2 text-xs text-neutral-400">
-            <span className="text-neutral-600 flex-shrink-0 font-mono">{symbol}</span>
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
-function RedesignResults({ data }: { data: Record<string, unknown> }) {
-  const [tab, setTab] = useState<"concept" | "code" | "tokens">("concept");
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="intel-card mt-4"
-    >
-      <div className="flex items-center gap-3 mb-4">
-        {(["concept", "code", "tokens"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg capitalize transition-all ${
-              tab === t ? "bg-white text-black" : "text-neutral-500 hover:text-white"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {tab === "concept" && (
-        <div className="space-y-4">
-          <p className="text-sm text-neutral-300">{data.design_concept as string}</p>
-          {data.color_palette && (
-            <div>
-              <div className="section-label mb-2">Suggested Color Palette</div>
-              <div className="flex gap-2">
-                {Object.entries(data.color_palette as Record<string, string>).map(([name, hex]) => (
-                  <div key={name} className="flex flex-col items-center gap-1">
-                    <div className="w-8 h-8 rounded-md border border-neutral-700" style={{ backgroundColor: hex }} />
-                    <span className="text-[9px] text-neutral-600 capitalize">{name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {data.page_structure && (
-            <div>
-              <div className="section-label mb-2">Recommended Structure</div>
-              <div className="flex flex-wrap gap-2">
-                {(data.page_structure as string[]).map((s, i) => (
-                  <span key={i} className="text-xs bg-neutral-800 text-neutral-300 px-3 py-1 rounded">{s}</span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === "code" && data.hero_component && (
-        <div className="bg-neutral-950 rounded-lg p-4 overflow-auto max-h-96">
-          <pre className="text-xs font-mono text-neutral-400 whitespace-pre-wrap">
-            {data.hero_component as string}
-          </pre>
-        </div>
-      )}
-
-      {tab === "tokens" && data.design_tokens && (
-        <div className="bg-neutral-950 rounded-lg p-4 overflow-auto max-h-96">
-          <pre className="text-xs font-mono text-neutral-400 whitespace-pre-wrap">
-            {JSON.stringify(data.design_tokens, null, 2)}
-          </pre>
-        </div>
-      )}
-    </motion.div>
   );
 }

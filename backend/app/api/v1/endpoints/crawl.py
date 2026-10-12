@@ -1,20 +1,31 @@
 """
-Crawl Endpoints — Manages crawl jobs and page discovery
+Crawl Endpoints — Manages crawl jobs and page discovery.
+Every scan is saved to the SQLite database for persistent stats.
 """
 import asyncio
 import uuid
 import logging
 from datetime import datetime
 from typing import Dict, Any
+from urllib.parse import urlparse
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from app.models.schemas import CrawlRequest, CrawlStatus, DiscoveredPage
 from app.services.crawler import crawler_service
+from app.services import database as db
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# In-memory job store (use Redis in production)
+# In-memory job store (active jobs only — history is in SQLite)
 jobs: Dict[str, Any] = {}
+
+
+def _get_domain(url: str) -> str:
+    """Extract clean domain from URL."""
+    try:
+        return urlparse(url).netloc.replace("www.", "")
+    except Exception:
+        return url
 
 
 def _init_job(job_id: str, url: str, max_pages: int) -> Dict:
@@ -27,7 +38,7 @@ def _init_job(job_id: str, url: str, max_pages: int) -> Dict:
         "pages_found": 0,
         "pages_crawled": 0,
         "total_pages": 0,
-        "logs": [f"[{datetime.now().strftime('%H:%M:%S')}] Job created for {url}"],
+        "logs": [f"[{datetime.now().strftime('%H:%M:%S')}] Scan started for {url}"],
         "pages": [],
         "error": None,
         "created_at": datetime.now().isoformat(),
@@ -36,12 +47,19 @@ def _init_job(job_id: str, url: str, max_pages: int) -> Dict:
 
 async def _run_crawl(job_id: str):
     job = jobs[job_id]
+    url = job["url"]
+    started_at = job["created_at"]
+    domain = _get_domain(url)
+
     try:
         job["status"] = "running"
-        job["logs"].append(f"[{datetime.now().strftime('%H:%M:%S')}] Starting discovery...")
+        msg = f"[{datetime.now().strftime('%H:%M:%S')}] Starting page discovery..."
+        job["logs"].append(msg)
+        # Save log to DB
+        await db.add_scan_log(job_id, msg)
 
         pages = await crawler_service.discover_pages(
-            base_url=job["url"],
+            base_url=url,
             max_pages=job["max_pages"],
             job_id=job_id,
             jobs_store=jobs,
@@ -52,27 +70,44 @@ async def _run_crawl(job_id: str):
         job["total_pages"] = len(pages)
         job["progress"] = 100.0
         job["status"] = "completed"
-        job["logs"].append(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Crawl complete — {len(pages)} pages found")
+
+        done_msg = f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Scan complete — {len(pages)} pages found"
+        job["logs"].append(done_msg)
+
+        # Save all logs to DB
+        await db.add_scan_log(job_id, done_msg)
+        await db.record_scan_finished(job_id, "completed", len(pages), started_at)
 
     except Exception as e:
         job["status"] = "failed"
         job["error"] = str(e)
-        job["logs"].append(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ Error: {e}")
+        err_msg = f"[{datetime.now().strftime('%H:%M:%S')}] ✗ Error: {e}"
+        job["logs"].append(err_msg)
+        await db.add_scan_log(job_id, err_msg, level="error")
+        await db.record_scan_finished(job_id, "failed", job.get("pages_found", 0), started_at)
         logger.error(f"Crawl failed for job {job_id}: {e}")
 
 
 @router.post("/start", response_model=Dict[str, str])
 async def start_crawl(request: CrawlRequest, background_tasks: BackgroundTasks):
-    """Start a new crawl job"""
+    """Start a new website scan. Returns job_id immediately, scan runs in background."""
     job_id = str(uuid.uuid4())
-    jobs[job_id] = _init_job(job_id, str(request.url), request.max_pages)
+    url = str(request.url)
+    domain = _get_domain(url)
+
+    jobs[job_id] = _init_job(job_id, url, request.max_pages)
+
+    # Save to database immediately so it counts in stats
+    await db.record_scan_started(job_id, url, domain)
+    await db.add_scan_log(job_id, f"Scan started for {url}")
+
     background_tasks.add_task(_run_crawl, job_id)
     return {"job_id": job_id, "status": "started"}
 
 
 @router.get("/status/{job_id}", response_model=CrawlStatus)
 async def get_crawl_status(job_id: str):
-    """Get crawl job status and progress"""
+    """Get real-time status and progress of a running scan."""
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     job = jobs[job_id]
@@ -91,7 +126,7 @@ async def get_crawl_status(job_id: str):
 
 @router.get("/pages/{job_id}")
 async def get_crawled_pages(job_id: str):
-    """Get all discovered pages for a job"""
+    """Get all discovered pages for a completed scan."""
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     job = jobs[job_id]
@@ -102,10 +137,18 @@ async def get_crawled_pages(job_id: str):
     }
 
 
+@router.get("/logs/{job_id}")
+async def get_scan_logs_from_db(job_id: str):
+    """Get all logs for a scan from the database (persisted even after server restart)."""
+    logs = await db.get_scan_logs(job_id)
+    return {"job_id": job_id, "logs": logs, "total": len(logs)}
+
+
 @router.delete("/{job_id}")
 async def cancel_crawl(job_id: str):
-    """Cancel/delete a crawl job"""
+    """Cancel/delete a running scan."""
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     jobs[job_id]["status"] = "cancelled"
-    return {"message": "Job cancelled"}
+    await db.record_scan_finished(job_id, "cancelled", jobs[job_id].get("pages_found", 0), jobs[job_id]["created_at"])
+    return {"message": "Scan cancelled"}

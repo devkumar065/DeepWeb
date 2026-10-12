@@ -1,34 +1,47 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Fraunces, Playfair_Display } from "next/font/google";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  axes: ["SOFT", "WONK"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "WebIntel — Website Intelligence & Reverse Engineering Platform",
+  title: "DeepWeb — Scan & Analyze Any Website",
   description:
-    "Production-grade website intelligence platform. Discover every page, extract brand assets, detect tech stacks, analyze SEO, and generate AI insights for any website.",
+    "Paste any website URL and DeepWeb scans it in seconds. Get all pages, tech stack, brand colors, SEO analysis, screenshots, and AI insights in one place.",
   keywords: [
-    "website intelligence",
-    "web reverse engineering",
-    "tech stack detection",
+    "website scanner",
+    "tech stack detector",
     "website analysis",
-    "SEO analysis",
-    "brand extraction",
+    "SEO checker",
+    "brand color extractor",
+    "DeepWeb",
   ],
   openGraph: {
-    title: "WebIntel — Website Intelligence Platform",
+    title: "DeepWeb — Scan & Analyze Any Website",
     description:
-      "Analyze any website in depth: pages, assets, tech stack, SEO, brand, and AI insights.",
+      "Paste any website URL and get a full report: pages, tech stack, colors, SEO, screenshots, and AI insights.",
     type: "website",
   },
 };
@@ -39,23 +52,29 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white min-h-screen`}
+        className={`${inter.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${playfair.variable} font-sans antialiased bg-background text-foreground h-screen w-screen overflow-hidden relative selection:bg-accent selection:text-accent-foreground`}
       >
-        {children}
-        <Toaster
-          position="bottom-right"
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: "#1a1a1a",
-              border: "1px solid #333",
-              color: "#fff",
-              fontFamily: "inherit",
-            },
-          }}
-        />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange={false}>
+          {/* Subtle noise texture */}
+          <div className="pointer-events-none fixed inset-0 z-[-1]">
+            <div 
+              className="absolute inset-0 opacity-[0.025] dark:opacity-[0.035] mix-blend-overlay"
+              style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}
+            />
+          </div>
+          
+          {children}
+
+          <Toaster
+            position="bottom-right"
+            theme="system"
+            toastOptions={{
+              className: "border border-border bg-surface text-foreground shadow-lg font-sans text-sm rounded-xl",
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

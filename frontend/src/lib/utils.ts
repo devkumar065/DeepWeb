@@ -58,20 +58,19 @@ export function toTitleCase(str: string): string {
 }
 
 export function getPageTypeColor(type: string): string {
-  // All monochrome — different shades of gray
   const map: Record<string, string> = {
-    homepage: "text-white bg-neutral-700",
-    about: "text-neutral-200 bg-neutral-800",
-    services: "text-neutral-300 bg-neutral-800",
-    pricing: "text-neutral-300 bg-neutral-800",
-    blog: "text-neutral-400 bg-neutral-900",
-    portfolio: "text-neutral-400 bg-neutral-900",
-    contact: "text-neutral-300 bg-neutral-800",
-    terms: "text-neutral-500 bg-neutral-900",
-    privacy: "text-neutral-500 bg-neutral-900",
-    careers: "text-neutral-400 bg-neutral-900",
-    case_studies: "text-neutral-400 bg-neutral-900",
-    custom: "text-neutral-500 bg-neutral-900",
+    homepage: "text-accent bg-accent/10 border-accent/20 font-medium",
+    about: "text-foreground bg-surface-elevated border-border",
+    services: "text-foreground bg-surface-elevated border-border",
+    pricing: "text-warning bg-warning/10 border-warning/20 font-medium",
+    blog: "text-foreground-secondary bg-surface-elevated border-border",
+    portfolio: "text-foreground-secondary bg-surface-elevated border-border",
+    contact: "text-success bg-success/10 border-success/20 font-medium",
+    terms: "text-muted bg-surface border-border",
+    privacy: "text-muted bg-surface border-border",
+    careers: "text-foreground bg-surface-elevated border-border",
+    case_studies: "text-foreground bg-surface-elevated border-border",
+    custom: "text-muted bg-surface border-border",
   };
   return map[type] || map.custom;
 }

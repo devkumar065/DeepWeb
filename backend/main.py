@@ -1,5 +1,5 @@
 """
-Website Intelligence Platform — FastAPI Backend
+DeepWeb — FastAPI Backend
 Main application entry point
 """
 from fastapi import FastAPI
@@ -10,6 +10,8 @@ import logging
 
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.services.database import init_db
+from app.services.browser_pool import browser_pool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,14 +19,20 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("🚀 Website Intelligence Platform starting...")
+    # Initialize SQLite database on startup
+    await init_db()
+    # Initialize shared Playwright browser pool
+    await browser_pool.initialize()
+    logger.info("🚀 DeepWeb backend starting...")
     yield
+    # Cleanup browser pool on shutdown
+    await browser_pool.cleanup()
     logger.info("🛑 Shutting down...")
 
 
 app = FastAPI(
-    title="Website Intelligence Platform",
-    description="Production-grade Website Intelligence and Reverse Engineering API",
+    title="DeepWeb API",
+    description="Scan and analyze any website — pages, tech stack, SEO, brand, AI insights.",
     version="1.0.0",
     lifespan=lifespan,
     docs_url="/api/docs",
@@ -47,4 +55,10 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "1.0.0", "name": "DeepWeb"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+

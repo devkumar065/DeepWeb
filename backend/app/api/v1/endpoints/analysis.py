@@ -30,7 +30,7 @@ async def _render_page(url: str) -> tuple[str, Dict, str]:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox"]
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--single-process"]
         )
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (compatible; WebIntelBot/1.0)",
@@ -56,6 +56,7 @@ async def _render_page(url: str) -> tuple[str, Dict, str]:
             if resp:
                 headers_captured.update(dict(resp.headers))
         finally:
+            await page.close()
             await context.close()
             await browser.close()
 
@@ -100,17 +101,46 @@ async def analyze_website(request: AnalysisRequest):
     try:
         # Render page
         html, headers, final_url = await _render_page(url)
-        soup = BeautifulSoup(html, "lxml")
+        soup = await asyncio.to_thread(BeautifulSoup, html, "lxml")
         css_texts = await _get_css_texts(html, url)
         domain = urlparse(url).netloc.replace("www.", "")
 
         # Overview
-        cms = analyzer_service.detect_cms(html, headers)
-        framework = analyzer_service.detect_framework(html, headers)
-        cdn = analyzer_service.detect_cdn(headers)
-        hosting = analyzer_service.detect_hosting(headers)
-        analytics = analyzer_service.detect_analytics(html)
-        domain_age = await analyzer_service.get_domain_age(domain)
+        try:
+            cms = await asyncio.to_thread(analyzer_service.detect_cms, html, headers)
+        except Exception as e:
+            logger.warning(f"Failed to detect CMS: {e}")
+            cms = None
+
+        try:
+            framework = await asyncio.to_thread(analyzer_service.detect_framework, html, headers)
+        except Exception as e:
+            logger.warning(f"Failed to detect framework: {e}")
+            framework = None
+
+        try:
+            cdn = await asyncio.to_thread(analyzer_service.detect_cdn, headers)
+        except Exception as e:
+            logger.warning(f"Failed to detect CDN: {e}")
+            cdn = None
+
+        try:
+            hosting = await asyncio.to_thread(analyzer_service.detect_hosting, headers)
+        except Exception as e:
+            logger.warning(f"Failed to detect hosting: {e}")
+            hosting = None
+
+        try:
+            analytics = await asyncio.to_thread(analyzer_service.detect_analytics, html)
+        except Exception as e:
+            logger.warning(f"Failed to detect analytics: {e}")
+            analytics = []
+
+        try:
+            domain_age = await analyzer_service.get_domain_age(domain)
+        except Exception as e:
+            logger.warning(f"Failed to get domain age: {e}")
+            domain_age = None
 
         # Favicon
         favicon_tag = soup.find("link", rel=lambda x: x and "icon" in x.lower())
@@ -144,8 +174,17 @@ async def analyze_website(request: AnalysisRequest):
         }
 
         # Brand / Design Tokens
-        colors = analyzer_service.extract_colors(html, css_texts)
-        fonts = analyzer_service.extract_fonts(html, css_texts)
+        try:
+            colors = await asyncio.to_thread(analyzer_service.extract_colors, html, css_texts)
+        except Exception as e:
+            logger.warning(f"Failed to extract colors: {e}")
+            colors = []
+
+        try:
+            fonts = await asyncio.to_thread(analyzer_service.extract_fonts, html, css_texts)
+        except Exception as e:
+            logger.warning(f"Failed to extract fonts: {e}")
+            fonts = []
 
         # Extract border-radius and spacing from CSS
         import re
@@ -174,19 +213,39 @@ async def analyze_website(request: AnalysisRequest):
         }
 
         # Navigation
-        navigation = analyzer_service.extract_navigation(html)
+        try:
+            navigation = await asyncio.to_thread(analyzer_service.extract_navigation, html)
+        except Exception as e:
+            logger.warning(f"Failed to extract navigation: {e}")
+            navigation = {}
 
         # SEO
-        seo = analyzer_service.extract_seo_data(html, url)
+        try:
+            seo = await asyncio.to_thread(analyzer_service.extract_seo_data, html, url)
+        except Exception as e:
+            logger.warning(f"Failed to extract SEO data: {e}")
+            seo = {}
 
         # Technologies
-        technologies = analyzer_service.detect_technologies(html, headers, url)
+        try:
+            technologies = await asyncio.to_thread(analyzer_service.detect_technologies, html, headers, url)
+        except Exception as e:
+            logger.warning(f"Failed to detect technologies: {e}")
+            technologies = []
 
         # Social Media
-        social = analyzer_service.extract_social_links(html)
+        try:
+            social = await asyncio.to_thread(analyzer_service.extract_social_links, html)
+        except Exception as e:
+            logger.warning(f"Failed to extract social links: {e}")
+            social = {}
 
         # Contacts
-        contacts = analyzer_service.extract_contacts(html)
+        try:
+            contacts = await asyncio.to_thread(analyzer_service.extract_contacts, html)
+        except Exception as e:
+            logger.warning(f"Failed to extract contacts: {e}")
+            contacts = {}
 
         result = {
             "job_id": request.job_id,

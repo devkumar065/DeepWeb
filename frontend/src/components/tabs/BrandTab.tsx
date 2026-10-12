@@ -3,10 +3,15 @@
 import { motion } from "framer-motion";
 import { useAnalysisStore } from "@/store/analysis";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Copy, Download, Check, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function BrandTab() {
   const { brand, step } = useAnalysisStore();
-  const isLoading = !brand && step === "analyzing";
+  const [copiedHex, setCopiedHex] = useState<string | null>(null);
+
+  const isLoading = !brand && (step === "analyzing" || step === "fetching" || step === "rendering");
 
   if (isLoading) return <BrandSkeleton />;
   if (!brand) return <EmptyState />;
@@ -17,200 +22,237 @@ export default function BrandTab() {
   const logos = (b.logo_urls as string[]) || [];
   const borderRadii = (b.border_radius as string[]) || [];
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard?.writeText(text);
+    setCopiedHex(text);
+    toast.success(`Copied ${text.toUpperCase()} to clipboard`);
+    setTimeout(() => setCopiedHex(null), 2000);
+  };
+
   return (
     <div className="space-y-8">
-      {/* Logo Gallery */}
+      {/* Logos Gallery */}
       {logos.length > 0 && (
-        <Section label="Logos">
-          <div className="flex flex-wrap gap-4">
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[11px] font-mono font-semibold tracking-wider uppercase text-muted">
+              Brand Logos & Wordmarks ({logos.length})
+            </h3>
+            <span className="text-xs text-muted font-mono">Rendered on light & dark surfaces</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {logos.map((url, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.05 }}
-                className="relative group"
+                className="rounded-2xl border border-border bg-surface p-4 space-y-3 shadow-xs hover:border-border-hover transition-colors"
               >
-                <div className="bg-white rounded-xl p-6 flex items-center justify-center h-24 w-48 border border-neutral-200">
-                  <img src={url} alt={`Logo ${i + 1}`} className="max-h-full max-w-full object-contain"
-                    onError={(e) => { (e.currentTarget.parentElement as HTMLElement).remove(); }} />
+                {/* Side-by-side surface test */}
+                <div className="grid grid-cols-2 gap-2 h-28">
+                  {/* Light surface */}
+                  <div className="rounded-xl bg-[#FFFFFF] border border-[#E5E0E1] p-3 flex items-center justify-center relative overflow-hidden">
+                    <img 
+                      src={url} 
+                      alt={`Logo ${i + 1} Light`} 
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }} 
+                    />
+                    <span className="absolute bottom-1 right-2 text-[9px] font-mono font-semibold text-neutral-400">Light</span>
+                  </div>
+
+                  {/* Dark surface */}
+                  <div className="rounded-xl bg-[#0B0B0D] border border-[#302A2D] p-3 flex items-center justify-center relative overflow-hidden">
+                    <img 
+                      src={url} 
+                      alt={`Logo ${i + 1} Dark`} 
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }} 
+                    />
+                    <span className="absolute bottom-1 right-2 text-[9px] font-mono font-semibold text-neutral-500">Dark</span>
+                  </div>
                 </div>
-                <div className="absolute inset-0 bg-black/80 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <a href={url} download className="text-xs text-white border border-white/20 px-3 py-1.5 rounded-lg hover:bg-white/10">
-                    Download
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs font-mono text-muted truncate max-w-[160px]">
+                    Logo asset #{i + 1}
+                  </span>
+                  <a
+                    href={url}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-mono font-medium text-accent hover:underline"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download</span>
                   </a>
                 </div>
-                <div className="mt-1 text-[10px] text-neutral-600 font-mono truncate max-w-[192px]">Light</div>
-              </motion.div>
-            ))}
-            {/* Dark mode version */}
-            {logos.map((url, i) => (
-              <motion.div
-                key={`dark-${i}`}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: (logos.length + i) * 0.05 }}
-                className="relative group"
-              >
-                <div className="bg-neutral-900 rounded-xl p-6 flex items-center justify-center h-24 w-48 border border-neutral-700">
-                  <img src={url} alt={`Logo dark ${i + 1}`} className="max-h-full max-w-full object-contain filter invert"
-                    onError={(e) => { (e.currentTarget.parentElement as HTMLElement).remove(); }} />
-                </div>
-                <div className="mt-1 text-[10px] text-neutral-600 font-mono truncate max-w-[192px]">Dark</div>
               </motion.div>
             ))}
           </div>
-        </Section>
+        </section>
       )}
 
-      {/* Colors */}
+      {/* Brand Color System */}
       {colors.length > 0 && (
-        <Section label={`Brand Colors (${colors.length})`}>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[11px] font-mono font-semibold tracking-wider uppercase text-muted">
+              Color Tokens ({colors.length})
+            </h3>
+            <span className="text-xs text-muted font-mono">Click to copy values</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {colors.map((c, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="intel-card !p-0 overflow-hidden"
+                transition={{ delay: Math.min(i * 0.03, 0.4) }}
+                className="bg-surface border border-border rounded-xl p-3 shadow-xs hover:border-border-hover transition-all flex flex-col gap-2.5 group"
               >
                 <div
-                  className="h-20 w-full cursor-pointer hover:opacity-90 transition-opacity"
+                  className="h-16 w-full rounded-lg border border-border/80 shadow-2xs cursor-pointer group-hover:scale-[1.02] transition-transform"
                   style={{ backgroundColor: c.hex }}
-                  onClick={() => navigator.clipboard?.writeText(c.hex)}
+                  onClick={() => copyToClipboard(c.hex)}
                   title="Click to copy HEX"
                 />
-                <div className="p-3 space-y-1">
+
+                <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold font-mono">{c.hex.toUpperCase()}</span>
                     <button
-                      onClick={() => navigator.clipboard?.writeText(c.hex)}
-                      className="text-[10px] text-neutral-500 hover:text-white transition-colors"
+                      onClick={() => copyToClipboard(c.hex)}
+                      className="font-mono text-xs font-bold text-foreground hover:text-accent transition-colors flex items-center gap-1"
                     >
-                      Copy
+                      <span>{c.hex.toUpperCase()}</span>
+                      {copiedHex === c.hex ? (
+                        <Check className="w-3 h-3 text-success" />
+                      ) : (
+                        <Copy className="w-3 h-3 text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
                     </button>
+                    {c.frequency && (
+                      <span className="text-[10px] font-mono text-muted">{c.frequency}×</span>
+                    )}
                   </div>
-                  <div className="text-[10px] text-neutral-500 font-mono leading-4">
-                    <div>{c.rgb}</div>
-                    <div>{c.hsl}</div>
+
+                  <div className="text-[10px] font-mono text-muted truncate">
+                    {c.rgb}
                   </div>
-                  {c.frequency && (
-                    <div className="text-[10px] text-neutral-600">
-                      Frequency: {c.frequency}×
-                    </div>
-                  )}
                 </div>
               </motion.div>
             ))}
           </div>
-        </Section>
+        </section>
       )}
 
-      {/* Typography */}
+      {/* Typography Specimens */}
       {fonts.length > 0 && (
-        <Section label="Typography">
+        <section className="space-y-4">
+          <h3 className="text-[11px] font-mono font-semibold tracking-wider uppercase text-muted">
+            Typography System
+          </h3>
+
           <div className="space-y-3">
             {fonts.map((f, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.06 }}
-                className="intel-card"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-surface border border-border rounded-2xl p-6 shadow-xs space-y-4"
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border">
                   <div>
-                    <div className="text-lg font-bold" style={{ fontFamily: f.family }}>
+                    <h4 className="text-xl font-bold text-foreground" style={{ fontFamily: f.family }}>
                       {f.family}
-                    </div>
-                    <div className="text-xs text-neutral-500 mt-0.5">{f.source || "local"}</div>
+                    </h4>
+                    <span className="text-xs text-muted font-mono">{f.source || "System / Webfont"}</span>
                   </div>
-                  <div className="flex gap-1">
+
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {f.weights?.map((w) => (
-                      <span key={w} className="text-[10px] font-mono bg-neutral-800 text-neutral-400 px-2 py-1 rounded">{w}</span>
+                      <span key={w} className="text-xs font-mono px-2 py-0.5 rounded bg-surface-elevated text-foreground border border-border">
+                        {w}
+                      </span>
                     ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4 mt-3 pt-3 border-t border-neutral-800">
-                  <div>
-                    <div className="text-[10px] text-neutral-500 mb-1">Regular</div>
-                    <div className="text-sm" style={{ fontFamily: f.family, fontWeight: 400 }}>The quick brown fox</div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono uppercase text-muted">Regular 400</span>
+                    <p className="text-base text-foreground" style={{ fontFamily: f.family, fontWeight: 400 }}>
+                      Sphinx of black quartz, judge my vow.
+                    </p>
                   </div>
-                  <div>
-                    <div className="text-[10px] text-neutral-500 mb-1">Medium</div>
-                    <div className="text-sm" style={{ fontFamily: f.family, fontWeight: 500 }}>The quick brown fox</div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono uppercase text-muted">Medium 500</span>
+                    <p className="text-base text-foreground" style={{ fontFamily: f.family, fontWeight: 500 }}>
+                      Sphinx of black quartz, judge my vow.
+                    </p>
                   </div>
-                  <div>
-                    <div className="text-[10px] text-neutral-500 mb-1">Bold</div>
-                    <div className="text-sm" style={{ fontFamily: f.family, fontWeight: 700 }}>The quick brown fox</div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono uppercase text-muted">Bold 700</span>
+                    <p className="text-base text-foreground" style={{ fontFamily: f.family, fontWeight: 700 }}>
+                      Sphinx of black quartz, judge my vow.
+                    </p>
                   </div>
                 </div>
               </motion.div>
             ))}
           </div>
-        </Section>
+        </section>
       )}
 
-      {/* Design Tokens */}
-      {(borderRadii.length > 0) && (
-        <Section label="Design Tokens">
-          <div className="grid grid-cols-2 gap-4">
-            {borderRadii.length > 0 && (
-              <div className="intel-card">
-                <div className="section-label mb-3">Border Radius</div>
-                <div className="space-y-2">
-                  {borderRadii.slice(0, 6).map((r, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs">
-                      <div
-                        className="w-8 h-8 border border-neutral-600 bg-neutral-800"
-                        style={{ borderRadius: r }}
-                      />
-                      <span className="font-mono text-neutral-400">{r}</span>
-                    </div>
-                  ))}
-                </div>
+      {/* Design Tokens & Radii */}
+      {borderRadii.length > 0 && (
+        <section className="space-y-4">
+          <h3 className="text-[11px] font-mono font-semibold tracking-wider uppercase text-muted">
+            Border Radius Scales
+          </h3>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {borderRadii.slice(0, 8).map((r, i) => (
+              <div 
+                key={i} 
+                className="bg-surface border border-border rounded-xl p-4 flex flex-col items-center gap-3 text-center"
+              >
+                <div
+                  className="w-12 h-12 border-2 border-accent/40 bg-surface-elevated shadow-2xs"
+                  style={{ borderRadius: r }}
+                />
+                <span className="text-xs font-mono font-bold text-foreground">{r}</span>
               </div>
-            )}
+            ))}
           </div>
-        </Section>
+        </section>
       )}
-    </div>
-  );
-}
-
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="section-label mb-4">{label}</div>
-      {children}
     </div>
   );
 }
 
 function BrandSkeleton() {
   return (
-    <div className="space-y-8">
-      <div>
-        <Skeleton className="h-3 w-20 mb-4" />
-        <div className="flex gap-4">
-          <Skeleton className="h-24 w-48 rounded-xl" />
-          <Skeleton className="h-24 w-48 rounded-xl" />
-        </div>
+    <div className="space-y-6">
+      <div className="grid grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="bg-surface border border-border rounded-2xl p-4 h-36">
+            <Skeleton className="w-full h-full rounded-xl" />
+          </div>
+        ))}
       </div>
-      <div>
-        <Skeleton className="h-3 w-24 mb-4" />
-        <div className="grid grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="intel-card !p-0 overflow-hidden">
-              <Skeleton className="h-20 w-full rounded-none" />
-              <div className="p-3 space-y-1.5">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-3 w-full" />
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-6 gap-3">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="bg-surface border border-border rounded-xl p-3 h-28">
+            <Skeleton className="w-full h-14 rounded-lg mb-2" />
+            <Skeleton className="w-16 h-3" />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -218,9 +260,10 @@ function BrandSkeleton() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-64 text-neutral-600">
-      <div className="text-4xl mb-4">◈</div>
-      <p className="text-sm">Brand data pending...</p>
+    <div className="flex flex-col items-center justify-center h-72 text-muted bg-surface border border-border rounded-2xl">
+      <div className="text-3xl mb-3 text-accent font-serif font-bold">◈</div>
+      <p className="text-sm font-medium text-foreground">Brand Assets Pending</p>
+      <p className="text-xs text-muted mt-1">Start a scan to extract design tokens and logos</p>
     </div>
   );
 }

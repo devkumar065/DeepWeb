@@ -24,3 +24,15 @@ dist/
 # OS Files
 .DS_Store
 *.swp
+
+# Database & Logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Temporary scripts
+rename.py
+backend/test_sse.py
+frontend/fix_tabs*.py
+frontend/replace_classes.py

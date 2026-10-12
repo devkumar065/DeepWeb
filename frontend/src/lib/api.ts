@@ -18,6 +18,19 @@ export const crawlApi = {
     api.get(`/crawl/pages/${jobId}`),
 };
 
+// ── Unified Scan (New Pipeline) ───────────────────────────────────────────
+// Replaces the old crawl → analysis → screenshots → assets flow
+export const scanApi = {
+  start: (url: string, maxPages = 20) =>
+    api.post("/scan/start", { url, max_pages: maxPages }),
+  status: (scanId: string) =>
+    api.get(`/scan/status/${scanId}`),
+  results: (scanId: string) =>
+    api.get(`/scan/results/${scanId}`),
+  streamUrl: (scanId: string) =>
+    `${API_URL}/scan/stream/${scanId}`,
+};
+
 // ── Analysis ───────────────────────────────────────────────────────────
 export const analysisApi = {
   analyze: (url: string, jobId?: string) =>
@@ -73,4 +86,10 @@ export const exportApi = {
     api.post("/export/zip", { data, url, job_id: jobId, format: "zip" }, { responseType: "blob" }),
 };
 
+// ── Stats ──────────────────────────────────────────────────────────────
+export const statsApi = {
+  get: () => api.get("/stats/"),
+};
+
 export default api;
+
