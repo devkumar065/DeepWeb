@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAnalysisStore } from "@/store/analysis";
 import { toast } from "sonner";
-import { exportApi } from "@/lib/api";
+import { exportApi, API_URL } from "@/lib/api";
 import {
   FileText,
   FileDown,
@@ -61,8 +61,8 @@ export default function ReportTab() {
     (overview?.favicon as string) ||
     `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
 
-  const reportPdfUrl = scanId ? `http://localhost:8000/api/v1/report/pdf/${scanId}` : "";
-  const reportPreviewUrl = scanId ? `http://localhost:8000/api/v1/report/html/${scanId}` : "";
+  const reportPdfUrl = scanId ? `${API_URL}/report/pdf/${scanId}` : "";
+  const reportPreviewUrl = scanId ? `${API_URL}/report/html/${scanId}` : "";
 
   const downloadPdf = async () => {
     if (!scanId) {

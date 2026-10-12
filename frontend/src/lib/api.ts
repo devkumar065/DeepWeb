@@ -1,6 +1,17 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+// Determine API base URL:
+// 1. Server-side in Vercel function: use BACKEND_URL injected by Vercel service binding
+// 2. Explicitly configured: use NEXT_PUBLIC_API_URL
+// 3. Browser runtime: use relative "/api/v1" (routed to backend via Vercel rewrites)
+// 4. Fallback for standalone SSR: "http://localhost:8000/api/v1"
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window === "undefined" && process.env.BACKEND_URL
+    ? `${process.env.BACKEND_URL.replace(/\/+$/, "")}/api/v1`
+    : typeof window !== "undefined"
+    ? "/api/v1"
+    : "http://localhost:8000/api/v1");
 
 const api = axios.create({
   baseURL: API_URL,

@@ -21,12 +21,18 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Initialize SQLite database on startup
     await init_db()
-    # Initialize shared Playwright browser pool
-    await browser_pool.initialize()
+    # Initialize shared Playwright browser pool (graceful for serverless)
+    try:
+        await browser_pool.initialize()
+    except Exception as e:
+        logger.warning(f"⚠️ Browser pool could not be initialized at startup: {e}")
     logger.info("🚀 DeepWeb backend starting...")
     yield
     # Cleanup browser pool on shutdown
-    await browser_pool.cleanup()
+    try:
+        await browser_pool.cleanup()
+    except Exception as e:
+        logger.warning(f"Error during browser pool cleanup: {e}")
     logger.info("🛑 Shutting down...")
 
 
@@ -37,12 +43,14 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 
 # Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origin_regex=r"^https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,6 +62,7 @@ app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "1.0.0", "name": "DeepWeb"}
 
