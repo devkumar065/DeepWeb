@@ -1,0 +1,14 @@
+# Netlify Monorepo Configuration for Inspectra / DeepWeb
+
+[build]
+  # Tell Netlify that the Next.js app is inside the frontend directory
+  base = "frontend"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
